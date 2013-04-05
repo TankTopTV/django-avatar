@@ -7,7 +7,7 @@ from django.template.defaultfilters import slugify
 from django.contrib.auth.models import User
 
 from avatar.settings import (AVATAR_DEFAULT_URL, AVATAR_CACHE_TIMEOUT,
-                             AUTO_GENERATE_AVATAR_SIZES, AVATAR_DEFAULT_SIZE)
+                             AUTO_GENERATE_AVATAR_SIZES, AVATAR_DEFAULT_SIZE, AVATAR_DEFAULT_USE_STATIC_STORAGE)
 
 cached_funcs = set()
 cached_sizes = set()
@@ -53,7 +53,11 @@ def invalidate_cache(user, size=None):
         for size in sizes:
             cache.delete(get_cache_key(user, size, prefix))
 
+from django.contrib.staticfiles.storage import staticfiles_storage
 def get_default_avatar_url():
+    if AVATAR_DEFAULT_USE_STATIC_STORAGE:
+        return staticfiles_storage.url(AVATAR_DEFAULT_URL)    
+
     base_url = getattr(settings, 'STATIC_URL', None)
     if not base_url:
         base_url = getattr(settings, 'MEDIA_URL', '')
