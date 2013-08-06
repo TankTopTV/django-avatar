@@ -145,7 +145,10 @@ class Avatar(models.Model):
 
 
 def invalidate_avatar_cache(sender, instance, **kwargs):
-    invalidate_cache(instance.user)
+    try:
+        invalidate_cache(instance.user)
+    except User.DoesNotExist:
+        pass
 
 
 def create_default_thumbnails(sender, instance, created=False, **kwargs):
