@@ -1,6 +1,7 @@
+from hashlib import md5
+
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.hashcompat import md5_constructor
 from django.utils.encoding import smart_str
 from django.template.defaultfilters import slugify
 
@@ -20,7 +21,7 @@ def get_cache_key(user_or_username, size, prefix):
         user_or_username = user_or_username.username
     key = u'%s_%s_%s' % (prefix, user_or_username, size)
     return u'%s_%s' % (slugify(key)[:100],
-                       md5_constructor(smart_str(key)).hexdigest())
+                       md5(smart_str(key)).hexdigest())
 
 
 def cache_result(func):
@@ -47,7 +48,7 @@ def invalidate_cache(user, size=None):
     if size is None:
         # Invalidate all sizes of this image
         sizes = cached_sizes
-    else:    
+    else:
         sizes = set((size,))
     for prefix in cached_funcs:
         for size in sizes:
@@ -56,7 +57,7 @@ def invalidate_cache(user, size=None):
 from django.contrib.staticfiles.storage import staticfiles_storage
 def get_default_avatar_url():
     if AVATAR_DEFAULT_USE_STATIC_STORAGE:
-        return staticfiles_storage.url(AVATAR_DEFAULT_URL)    
+        return staticfiles_storage.url(AVATAR_DEFAULT_URL)
 
     base_url = getattr(settings, 'STATIC_URL', None)
     if not base_url:
