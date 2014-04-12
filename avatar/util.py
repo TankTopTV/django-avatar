@@ -53,6 +53,8 @@ def invalidate_cache(user, size=None):
     for prefix in cached_funcs:
         for size in sizes:
             cache.delete(get_cache_key(user, size, prefix))
+    for size in sizes:
+        cache.delete(bulk_cache_key(user.id, size))
 
 from django.contrib.staticfiles.storage import staticfiles_storage
 def get_default_avatar_url():
@@ -92,3 +94,33 @@ def get_primary_avatar(user, size=AVATAR_DEFAULT_SIZE):
         if not avatar.thumbnail_exists(size):
             avatar.create_thumbnail(size)
     return avatar
+
+def bulk_cache_key(user_id, size):
+    return u'get_avatars:%d:%s' % (user_id, size)
+
+
+def get_avatars(user_ids, size=AVATAR_DEFAULT_SIZE):
+    # Bulk -get for avatars. First try to get the avatars from the cache
+    user_ids = set(user_ids)
+    cache_keys = [bulk_cache_key(user_id, size) for user_id in user_ids]
+    avatar_dict = cache.get_many(cache_keys)
+
+    avatars = {}
+    for key, avatar in avatar_dict.iteritems():
+        avatars[avatar.user_id] = avatar
+        user_ids.remove(avatar.user_id)
+
+    # Fill in any avatars we don't yet have cached
+    new_avatars = {}
+    from avatar.models import Avatar
+    for avatar in Avatar.objects.select_related('user').only('avatar', 'user__id', 'user__username').filter(primary=True, user_id__in=user_ids):
+        if not avatar.thumbnail_exists(size):
+            avatar.create_thumbnail(size)
+        avatars[avatar.user_id] = avatar
+        new_avatars[bulk_cache_key(avatar.user_id, size)] = avatar
+
+    if new_avatars:
+        # Bulk-cache the new avatars
+        cache.set_many(new_avatars, 60*60*24)
+
+    return avatars
